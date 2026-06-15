@@ -5,13 +5,15 @@ import { loginService, getMeService } from "@/services/auth.service";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import { getToken, setToken, removeToken } from "@/utils/token";
+import Input from "@/components/common/Input";
+import Button from "@/components/common/Button";
 
 export default function Login() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   useEffect(() => {
     const token = getToken();
@@ -29,11 +31,33 @@ export default function Login() {
     }
   }, [router]);
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setErrors({})
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+
+
+    // validations for login
+    if (formData.password.length < 6) {
+      setErrors({ password: "Password must be at least 6 characters long" });
+      return;
+    }
+    if (!formData.email) {
+      setErrors({ email: "Email is required" });
+      return;
+    }
+
     setIsSubmitting(true);
 
-    loginService({ email, password })
+    loginService(formData)
       .then((res) => {
         const token = res?.data?.token || res?.token;
         if (token) {
@@ -45,7 +69,8 @@ export default function Login() {
         }
       })
       .catch((err) => {
-        toast.error(err || "Login failed");
+        const errMessage = typeof err === "string" ? err : "Login failed";
+        toast.error(errMessage);
       })
       .finally(() => {
         setIsSubmitting(false);
@@ -61,35 +86,56 @@ export default function Login() {
   }
 
   return (
-    <div className="p-5 max-w-[300px]">
-      <h1 className="text-2xl font-bold mb-4">Login</h1>
-      <form onSubmit={handleSubmit}>
-        <div className="mb-2">
-          <label className="block">Email:</label>
-          <input
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#ffffff] text-[#0f172a] px-4">
+      <div className="mb-6 flex flex-col items-center">
+        <h1 className="text-4xl font-extrabold tracking-tighter text-[#0f172a]">Rival.io</h1>
+        <p className="text-xs font-mono uppercase tracking-widest text-[#6b7890] mt-1">Task Dashboard</p>
+      </div>
+
+      <div className="w-full max-w-md bg-white border border-[#e5e8ef] p-8 rounded-2xl shadow-[0_1px_2px_rgba(10,21,48,0.04),0_12px_32px_-16px_rgba(10,21,48,0.12)]">
+        <h2 className="text-xl font-bold tracking-tight text-[#0f172a]">Sign in</h2>
+        <p className="text-sm text-[#6b7890] mb-6">Enter your credentials to access your dashboard</p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input
+            label="Email Address"
             type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
             required
             disabled={isSubmitting}
-            className="w-full p-1 border border-gray-300 rounded"
+            placeholder="name@example.com"
+            error={errors.email}
           />
-        </div>
-        <div className="mb-2">
-          <label className="block">Password:</label>
-          <input
+
+          <Input
+            label="Password"
             type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
             required
             disabled={isSubmitting}
-            className="w-full p-1 border border-gray-300 rounded"
+            placeholder="••••••••"
+            error={errors.password}
           />
+
+          <Button type="submit" isLoading={isSubmitting}>
+            Continue
+          </Button>
+        </form>
+
+        <div className="mt-6 text-center text-xs text-[#6b7890]">
+          Don&apos;t have an account?{" "}
+          <span
+            onClick={() => router.push("/signup")}
+            className="text-[#2957ff] font-semibold hover:underline cursor-pointer ml-1"
+          >
+            Create one
+          </span>
         </div>
-        <button type="submit" disabled={isSubmitting} className="px-3 py-1 bg-black text-white rounded cursor-pointer disabled:opacity-50">
-          {isSubmitting ? "Logging in..." : "Login"}
-        </button>
-      </form>
+      </div>
     </div>
   );
 }
