@@ -10,14 +10,14 @@ const api = axios.create({
   timeout: 50000, //50 second
 });
 
+import { getToken, removeToken } from "@/utils/token";
+
 // Request interceptor 
 api.interceptors.request.use(
   (config) => {
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token_rival");
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+    const token = getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -29,8 +29,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      removeToken();
       if (typeof window !== "undefined") {
-        localStorage.removeItem("token_rival");
         window.location.href = "/login";
       }
     }
