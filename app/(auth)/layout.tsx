@@ -31,8 +31,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
   if (isChecking) {
     return (
-      <div className="p-5">
-        <p>Loading...</p>
+      <div className="flex space-x-3 justify-center items-center bg-white min-h-screen">
+        <span className="sr-only">Loading...</span>
+        <div className="h-3.5 w-3.5 bg-[#2957ff] rounded-full animate-slow-up"></div>
+        <div className="h-3.5 w-3.5 bg-[#2957ff] rounded-full animate-slow-down"></div>
+        <div className="h-3.5 w-3.5 bg-[#2957ff] rounded-full animate-slow-up"></div>
       </div>
     );
   }
