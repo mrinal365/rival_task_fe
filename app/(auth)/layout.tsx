@@ -4,10 +4,13 @@ import React, { useEffect, useState } from "react";
 import { getMeService } from "@/services/auth.service";
 import { getToken, removeToken } from "@/utils/token";
 import { useRouter, usePathname } from "next/navigation";
+import { useAppDispatch } from "@/store/hooks";
+import { setUser } from "@/store/auth.slice";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const dispatch = useAppDispatch();
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
@@ -20,7 +23,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     }
 
     getMeService()
-      .then(() => {
+      .then((user) => {
+        dispatch(setUser(user));
         setIsChecking(false);
       })
       .catch(() => {
