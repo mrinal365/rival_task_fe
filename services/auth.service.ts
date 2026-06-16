@@ -1,6 +1,4 @@
 import api from "@/services/api";
-import { store } from "@/store";
-import { setUser } from "@/store/auth.slice";
 
 export const loginService = (payload: { email: string; password: string }) => {
     return api
@@ -17,9 +15,8 @@ export const getMeService = () => {
         .get("/auth/me")
         .then((res) => {
             const data = res.data;
-            const finalUser = data?.data || data?.user || data;
-            store.dispatch(setUser(finalUser));
-            return data;
+            const finalUser = data?.data
+            return finalUser;
         })
         .catch((err) => {
             const message = err?.response?.data?.message || "Something went wrong";
