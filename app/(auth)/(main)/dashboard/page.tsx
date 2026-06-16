@@ -4,43 +4,58 @@ import React, { useEffect, useState } from "react";
 import { getAllTasksService, createTaskService } from "@/services/task.service";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
-import { useAppSelector } from "@/store/hooks";
+import { useAppSelector, useAppDispatch } from "@/store/hooks";
+import { setTasks, addTask } from "@/store/task.slice";
 import { removeToken } from "@/utils/token";
-
-interface Task {
-  id: number;
-  title: string;
-  description?: string;
-  status?: string;
-}
+import Input from "@/components/common/Input";
+import Button from "@/components/common/Button";
+import Badge from "@/components/common/Badge";
+import TaskTable from "@/components/feature/TaskTable";
+import Select from "@/components/common/Select";
+import Modal from "@/components/common/Modal";
+import { SORT_OPTIONS, PRIORITY_OPTIONS } from "@/constants/task";
 
 const Dashboard = () => {
   const router = useRouter();
-  const tasksRes = useAppSelector((state) => state.auth.user);
-  const user = tasksRes;
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.auth.user);
+  const tasks = useAppSelector((state) => state.task.tasks);
 
-  // Form State
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Search and Sort state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortValue, setSortValue] = useState("created_at-desc");
+
+  // Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [priority, setPriority] = useState("medium");
   const [createError, setCreateError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    getAllTasksService()
-      .then((res) => {
-        const taskList = res?.data?.tasks || [];
-        setTasks(taskList);
-      })
-      .catch((err) => {
-        setError(err || "Failed to fetch dashboard data");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
+    setLoading(true);
+    const [sortBy, order] = sortValue.split("-");
+
+    const delayDebounce = setTimeout(() => {
+      getAllTasksService({ search: searchTerm, sortBy, order })
+        .then((tasksList) => {
+          dispatch(setTasks(tasksList));
+        })
+        .catch((err) => {
+          setError(err || "Failed to fetch dashboard data");
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchTerm, sortValue, dispatch]);
 
   const handleLogout = () => {
     removeToken();
@@ -55,12 +70,20 @@ const Dashboard = () => {
     setIsSubmitting(true);
     setCreateError(null);
 
-    createTaskService({ title, description })
-      .then((res) => {
-        toast.success(res?.message || "Task created successfully");
-        // Clear inputs after success
+    createTaskService({
+      title,
+      description,
+      due_date: dueDate || undefined,
+      priority,
+    })
+      .then((newTask) => {
+        toast.success("Task created successfully");
+        dispatch(addTask(newTask));
         setTitle("");
         setDescription("");
+        setDueDate("");
+        setPriority("medium");
+        setShowCreateModal(false);
       })
       .catch((err) => {
         setCreateError(err || "Failed to create task");
@@ -70,72 +93,176 @@ const Dashboard = () => {
       });
   };
 
-  if (loading) return <div>Loading tasks...</div>;
-  if (error) return <div>Error: {error}</div>;
+
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <p className="text-red-500 font-semibold">Error: {error}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-5">
-      {/* User Header */}
-      {user && (
-        <div className="flex items-center justify-between border-b border-gray-300 pb-4 mb-5">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center font-bold text-xl">
-              {user.name ? user.name[0].toUpperCase() : "U"}
-            </div>
-            <div>
-              <h2 className="text-xl font-bold m-0">Welcome, {user.name}</h2>
-              <p className="text-gray-500 m-0">{user.email}</p>
-            </div>
-          </div>
-          <button onClick={handleLogout} className="px-4 py-1.5 border border-gray-300 rounded cursor-pointer hover:bg-gray-100">
-            Logout
-          </button>
+    <div className="min-h-screen bg-white text-[#0f172a] font-sans flex flex-col">
+      {/* Top Navbar */}
+      <nav className="border-b border-[#e5e8ef] px-6 py-4 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur z-40">
+        <div className="flex items-center">
+          <span className="text-2xl font-extrabold tracking-tighter text-[#0f172a] cursor-pointer" onClick={() => router.push("/dashboard")}>
+            Rival.io
+          </span>
         </div>
-      )}
 
-      <h1 className="text-3xl font-extrabold mb-6">Dashboard</h1>
+        {user && (
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">
+                {user.name ? user.name[0].toUpperCase() : "U"}
+              </div>
+              <div className="hidden sm:block text-left">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-[#0f172a] leading-none m-0">{user.name}</p>
+                  {user.role && (
+                    <Badge variant="brand" className="text-[9px] font-extrabold uppercase tracking-wider !px-1.5 !py-0.5">
+                      {user.role}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-[#6b7890] mt-1 m-0">{user.email}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="px-3.5 py-1.5 border border-[#e5e8ef] hover:border-zinc-300 rounded-xl text-xs font-semibold text-[#3d4a66] hover:bg-zinc-50 transition-all cursor-pointer"
+            >
+              Logout
+            </button>
+          </div>
+        )}
+      </nav>
 
-      {/* Create Task Box */}
-      <div className="border border-gray-300 p-4 mb-5 max-w-[400px] rounded">
-        <h3 className="text-lg font-bold mb-3">Create New Task</h3>
-        {createError && <div className="text-red-500 mb-2">{createError}</div>}
-        <form onSubmit={handleCreateTask}>
-          <div className="mb-3">
-            <label className="block font-medium mb-1">Title:</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              disabled={isSubmitting}
-              className="w-full p-1 border border-gray-300 rounded"
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-extrabold tracking-tight text-[#0f172a]">Task Manager</h1>
+          <p className="text-sm text-[#6b7890] mt-1">Manage, organize, and track your team's tasks.</p>
+        </div>
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex-1 flex flex-col sm:flex-row gap-3">
+            <div className="w-full sm:max-w-md">
+              <input
+                type="text"
+                placeholder="Search tasks..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2.5 bg-[#fafbfd] border border-[#e5e8ef] rounded-xl focus:outline-none focus:border-[#2957ff] focus:ring-1 focus:ring-[#2957ff] transition-all text-sm"
+              />
+            </div>
+
+            <Select
+              value={sortValue}
+              onChange={setSortValue}
+              options={SORT_OPTIONS}
             />
           </div>
-          <div className="mb-3">
-            <label className="block font-medium mb-1">Description:</label>
+
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-5 py-2.5 bg-[#2957ff] text-white font-semibold text-sm rounded-xl hover:bg-[#1b43d6] transition-all cursor-pointer shadow-[0_1px_2px_rgba(41,87,255,0.2)] flex items-center gap-2 self-start md:self-auto"
+          >
+            Create Task
+          </button>
+        </div>
+
+        {/* Active Chips */}
+        {(searchTerm || sortValue !== "created_at-desc") && (
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            {searchTerm && (
+              <Badge variant="neutral" onClose={() => setSearchTerm("")}>
+                Search: "{searchTerm}"
+              </Badge>
+            )}
+            {sortValue !== "created_at-desc" && (
+              <Badge variant="brand" onClose={() => setSortValue("created_at-desc")}>
+                Sorted: {SORT_OPTIONS.find((opt) => opt.value === sortValue)?.label || ""}
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Tasks Table */}
+        <TaskTable tasks={tasks} loading={loading} />
+      </main>
+
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          setCreateError(null);
+          setTitle("");
+          setDescription("");
+          setDueDate("");
+          setPriority("medium");
+        }}
+        title="Create New Task"
+      >
+        {createError && <div className="text-red-500 text-xs mb-3">{createError}</div>}
+        <form onSubmit={handleCreateTask} className="space-y-4">
+          <Input
+            label="Title"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            disabled={isSubmitting}
+            placeholder="Complete dashboard feature"
+          />
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[#3d4a66] mb-1.5">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={isSubmitting}
-              className="w-full p-1 border border-gray-300 rounded"
+              placeholder="Task specifications..."
+              className="w-full px-3.5 py-2.5 bg-[#fafbfd] border border-[#e5e8ef] rounded-xl focus:outline-none focus:border-[#2957ff] focus:ring-1 focus:ring-[#2957ff] transition-all text-sm min-h-[100px]"
             />
           </div>
-          <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 bg-black text-white rounded cursor-pointer disabled:opacity-50">
-            {isSubmitting ? "Creating..." : "Create Task"}
-          </button>
+          <Input
+            label="Due Date"
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            disabled={isSubmitting}
+          />
+          <Select
+            label="Priority"
+            value={priority}
+            onChange={setPriority}
+            position="relative"
+            options={PRIORITY_OPTIONS}
+          />
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowCreateModal(false);
+                setCreateError(null);
+                setTitle("");
+                setDescription("");
+                setDueDate("");
+                setPriority("medium");
+              }}
+              className="flex-1 py-2 border border-[#e5e8ef] hover:bg-zinc-50 font-semibold rounded-xl text-sm transition-all cursor-pointer text-[#3d4a66]"
+            >
+              Cancel
+            </button>
+            <Button type="submit" isLoading={isSubmitting} className="flex-1">
+              Create
+            </Button>
+          </div>
         </form>
-      </div>
-
-      <h2 className="text-2xl font-bold mb-4">Tasks:</h2>
-      {tasks.length === 0 ? (
-        <p>No tasks found.</p>
-      ) : (
-        tasks.map((task) => (
-          <p key={task.id} className="mb-2">
-            <strong className="font-semibold">{task.title}</strong> - {task.description || "No description"} ({task.status || "no status"})
-          </p>
-        ))
-      )}
+      </Modal>
     </div>
   );
 };

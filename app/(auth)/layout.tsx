@@ -4,10 +4,13 @@ import React, { useEffect, useState } from "react";
 import { getMeService } from "@/services/auth.service";
 import { getToken, removeToken } from "@/utils/token";
 import { useRouter, usePathname } from "next/navigation";
+import { useAppDispatch } from "@/store/hooks";
+import { setUser } from "@/store/auth.slice";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const dispatch = useAppDispatch();
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
@@ -20,7 +23,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     }
 
     getMeService()
-      .then(() => {
+      .then((user) => {
+        dispatch(setUser(user));
         setIsChecking(false);
       })
       .catch(() => {
@@ -31,8 +35,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
   if (isChecking) {
     return (
-      <div className="p-5">
-        <p>Loading...</p>
+      <div className="flex space-x-3 justify-center items-center bg-white min-h-screen">
+        <span className="sr-only">Loading...</span>
+        <div className="h-3.5 w-3.5 bg-[#2957ff] rounded-full animate-slow-up"></div>
+        <div className="h-3.5 w-3.5 bg-[#2957ff] rounded-full animate-slow-down"></div>
+        <div className="h-3.5 w-3.5 bg-[#2957ff] rounded-full animate-slow-up"></div>
       </div>
     );
   }

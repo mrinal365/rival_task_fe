@@ -7,9 +7,12 @@ import { useRouter } from "next/navigation";
 import { getToken, setToken, removeToken } from "@/utils/token";
 import Input from "@/components/common/Input";
 import Button from "@/components/common/Button";
+import { useAppDispatch } from "@/store/hooks";
+import { setUser } from "@/store/auth.slice";
 
 export default function Login() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
@@ -19,7 +22,8 @@ export default function Login() {
     const token = getToken();
     if (token) {
       getMeService()
-        .then(() => {
+        .then((user) => {
+          dispatch(setUser(user));
           router.push("/dashboard");
         })
         .catch(() => {
