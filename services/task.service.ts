@@ -1,11 +1,11 @@
 import api from "@/services/api";
 
-export const getAllTasksService = (params?: { search?: string; sortBy?: string; order?: string }) => {
+export const getAllTasksService = (params?: { search?: string; sortBy?: string; order?: string; page?: number; limit?: number }) => {
   return api
     .get("/tasks", { params: params || {} })
     .then((res) => {
-      const data = res.data;
-      return data?.data?.tasks || data?.tasks || data || [];
+      const data = res.data?.data || res.data;
+      return data;
     })
     .catch((err) => {
       const message = err?.response?.data?.message || "Something went wrong";
