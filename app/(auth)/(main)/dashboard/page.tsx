@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { getAllTasksService, createTaskService } from "@/services/task.service";
+import { getAllTasksService, createTaskService, getTaskByIdService, updateTaskService, deleteTaskService } from "@/services/task.service";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import { setTasks, addTask } from "@/store/task.slice";
+import { setTasks, addTask, updateTask, deleteTask, Task } from "@/store/task.slice";
 import { removeToken } from "@/utils/token";
 import Input from "@/components/common/Input";
 import Button from "@/components/common/Button";
@@ -40,12 +40,25 @@ const Dashboard = () => {
 
   // Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState("medium");
+  const [status, setStatus] = useState("todo");
   const [createError, setCreateError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Task Detail Modal State
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  // Task Delete Modal State
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Refresh trigger state
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -82,6 +95,70 @@ const Dashboard = () => {
     router.push("/login");
   };
 
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setShowDetailModal(true);
+    setLoadingDetail(true);
+    setDetailError(null);
+
+    getTaskByIdService(task.id)
+      .then((detail) => {
+        setSelectedTask(detail);
+      })
+      .catch((err) => {
+        // Fallback to table task info if API fails/offline
+        console.error("Failed to fetch full task details", err);
+      })
+      .finally(() => {
+        setLoadingDetail(false);
+      });
+  };
+
+  const handleEditClick = (task: Task) => {
+    setEditingTask(task);
+    setTitle(task.title);
+    setDescription(task.description || "");
+    setDueDate(task.due_date ? new Date(task.due_date).toISOString().split("T")[0] : "");
+    setPriority(task.priority || "medium");
+    setStatus(task.status || "todo");
+    setShowCreateModal(true);
+  };
+
+  const handleDeleteClick = (task: Task) => {
+    setTaskToDelete(task);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!taskToDelete) return;
+    setIsDeleting(true);
+
+    deleteTaskService(taskToDelete.id)
+      .then(() => {
+        toast.success("Task deleted successfully");
+        dispatch(deleteTask(taskToDelete.id));
+        setShowDeleteModal(false);
+        setTaskToDelete(null);
+      })
+      .catch((err) => {
+        toast.error(err || "Failed to delete task");
+      })
+      .finally(() => {
+        setIsDeleting(false);
+      });
+  };
+
+  const handleCloseModal = () => {
+    setShowCreateModal(false);
+    setEditingTask(null);
+    setCreateError(null);
+    setTitle("");
+    setDescription("");
+    setDueDate("");
+    setPriority("medium");
+    setStatus("todo");
+  };
+
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
@@ -98,14 +175,37 @@ const Dashboard = () => {
       .then((newTask) => {
         toast.success("Task created successfully");
         dispatch(addTask(newTask));
-        setTitle("");
-        setDescription("");
-        setDueDate("");
-        setPriority("medium");
-        setShowCreateModal(false);
+        handleCloseModal();
       })
       .catch((err) => {
         setCreateError(err || "Failed to create task");
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
+  };
+
+  const handleUpdateTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask || !title.trim()) return;
+
+    setIsSubmitting(true);
+    setCreateError(null);
+
+    updateTaskService(editingTask.id, {
+      title,
+      description,
+      due_date: dueDate || undefined,
+      priority,
+      status,
+    })
+      .then((updatedTask) => {
+        toast.success("Task updated successfully");
+        dispatch(updateTask(updatedTask));
+        handleCloseModal();
+      })
+      .catch((err) => {
+        setCreateError(err || "Failed to update task");
       })
       .finally(() => {
         setIsSubmitting(false);
@@ -241,7 +341,7 @@ const Dashboard = () => {
         )}
 
         {/* Tasks Table */}
-        <TaskTable tasks={tasks} loading={loading} />
+        <TaskTable tasks={tasks} loading={loading} onTaskClick={handleTaskClick} onEditClick={handleEditClick} onDeleteClick={handleDeleteClick} currentUser={user} />
 
         {/* Pagination Controls */}
         {pagination && (
@@ -255,18 +355,11 @@ const Dashboard = () => {
 
       <Modal
         isOpen={showCreateModal}
-        onClose={() => {
-          setShowCreateModal(false);
-          setCreateError(null);
-          setTitle("");
-          setDescription("");
-          setDueDate("");
-          setPriority("medium");
-        }}
-        title="Create New Task"
+        onClose={handleCloseModal}
+        title={editingTask ? "Edit Task" : "Create New Task"}
       >
         {createError && <div className="text-red-500 text-xs mb-3">{createError}</div>}
-        <form onSubmit={handleCreateTask} className="space-y-4">
+        <form onSubmit={editingTask ? handleUpdateTask : handleCreateTask} className="space-y-4">
           <Input
             label="Title"
             type="text"
@@ -300,26 +393,153 @@ const Dashboard = () => {
             position="relative"
             options={PRIORITY_OPTIONS}
           />
+          {editingTask && (
+            <Select
+              label="Status"
+              value={status}
+              onChange={setStatus}
+              position="relative"
+              options={[
+                { value: "todo", label: "Todo" },
+                { value: "in_progress", label: "In Progress" },
+                { value: "done", label: "Done" },
+              ]}
+            />
+          )}
           <div className="flex items-center gap-3 pt-2">
             <button
               type="button"
-              onClick={() => {
-                setShowCreateModal(false);
-                setCreateError(null);
-                setTitle("");
-                setDescription("");
-                setDueDate("");
-                setPriority("medium");
-              }}
+              onClick={handleCloseModal}
               className="flex-1 py-2 border border-[#e5e8ef] hover:bg-zinc-50 font-semibold rounded-xl text-sm transition-all cursor-pointer text-[#3d4a66]"
             >
               Cancel
             </button>
             <Button type="submit" isLoading={isSubmitting} className="flex-1">
-              Create
+              {editingTask ? "Save Changes" : "Create"}
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={showDetailModal}
+        onClose={() => {
+          setShowDetailModal(false);
+          setSelectedTask(null);
+          setDetailError(null);
+        }}
+        title={selectedTask?.title || "Task Details"}
+      >
+        {selectedTask ? (
+          <div className="space-y-6 text-left">
+            {/* Task Info Grid */}
+            <div className="grid grid-cols-3 gap-4 bg-[#fafbfd] border border-[#e5e8ef] p-4 rounded-2xl">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#6b7890]">Status</span>
+                <div className="flex">
+                  <Badge variant={
+                    selectedTask.status === "done" ? "success" :
+                    selectedTask.status === "in_progress" ? "warning" : "neutral"
+                  }>
+                    {selectedTask.status ? String(selectedTask.status).replace("_", " ") : "todo"}
+                  </Badge>
+                </div>
+              </div>
+              
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#6b7890]">Priority</span>
+                <div className="flex">
+                  <Badge variant={
+                    selectedTask.priority === "high" ? "danger" :
+                    selectedTask.priority === "medium" ? "warning" : "neutral"
+                  }>
+                    {selectedTask.priority || "medium"}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#6b7890]">Due Date</span>
+                <div className="flex items-center min-h-[26px]">
+                  <span className="text-xs font-semibold text-[#0f172a] font-mono">
+                    {selectedTask.due_date ? new Date(selectedTask.due_date).toLocaleDateString() : "—"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="border-t border-[#e5e8ef] pt-4">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#6b7890] block mb-2">Description</span>
+              <p className="text-sm text-[#3d4a66] whitespace-pre-wrap leading-relaxed bg-[#fafbfd] border border-[#e5e8ef] rounded-2xl p-4 min-h-[100px]">
+                {selectedTask.description || "No description provided."}
+              </p>
+            </div>
+
+            {/* Timestamps */}
+            {selectedTask.created_at && (
+              <div className="border-t border-[#e5e8ef] pt-4 flex justify-between items-center text-[10px] text-[#6b7890] font-mono">
+                <span>Created: {new Date(selectedTask.created_at).toLocaleString()}</span>
+              </div>
+            )}
+
+            {/* Actions/Close */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDetailModal(false);
+                  setSelectedTask(null);
+                }}
+                className="w-full py-2.5 bg-zinc-100 hover:bg-zinc-200 text-[#0f172a] font-semibold rounded-xl text-sm transition-all cursor-pointer text-center"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-center items-center py-12">
+            <svg className="animate-spin h-8 w-8 text-[#2957ff]" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setTaskToDelete(null);
+        }}
+        title="Delete Task"
+      >
+        <div className="space-y-4 text-left">
+          <p className="text-sm text-[#3d4a66]">
+            Are you sure you want to delete the task <strong className="text-[#0f172a]">"{taskToDelete?.title}"</strong>? This action cannot be undone.
+          </p>
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setTaskToDelete(null);
+              }}
+              className="flex-1 py-2 border border-[#e5e8ef] hover:bg-zinc-50 font-semibold rounded-xl text-sm transition-all cursor-pointer text-[#3d4a66]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={handleDeleteConfirm}
+              className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl text-sm transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

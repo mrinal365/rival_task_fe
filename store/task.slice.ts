@@ -8,6 +8,7 @@ export interface Task {
   priority?: string;
   due_date?: string;
   created_at?: string;
+  user_id?: number;
 }
 
 interface TaskState {
@@ -33,8 +34,17 @@ const taskSlice = createSlice({
     addTask: (state, action: PayloadAction<Task>) => {
       state.tasks.push(action.payload);
     },
+    updateTask: (state, action: PayloadAction<Task>) => {
+      const idx = state.tasks.findIndex((t) => t.id === action.payload.id);
+      if (idx !== -1) {
+        state.tasks[idx] = action.payload;
+      }
+    },
+    deleteTask: (state, action: PayloadAction<number>) => {
+      state.tasks = state.tasks.filter((t) => t.id !== action.payload);
+    },
   },
 });
 
-export const { setLoading, setTasks, addTask } = taskSlice.actions;
+export const { setLoading, setTasks, addTask, updateTask, deleteTask } = taskSlice.actions;
 export default taskSlice.reducer;

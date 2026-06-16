@@ -5,9 +5,13 @@ import { Task } from "@/store/task.slice";
 interface TaskTableProps {
   tasks: Task[];
   loading: boolean;
+  onTaskClick?: (task: Task) => void;
+  onEditClick?: (task: Task) => void;
+  onDeleteClick?: (task: Task) => void;
+  currentUser?: { id: number; role?: string } | null;
 }
 
-const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading }) => {
+const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEditClick, onDeleteClick, currentUser }) => {
   const getStatusVariant = (status?: string) => {
     switch (status) {
       case "done":
@@ -32,6 +36,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading }) => {
                 <th className="p-4 font-semibold">Status</th>
                 <th className="p-4 font-semibold">Priority</th>
                 <th className="p-4 font-semibold">Due Date</th>
+                <th className="p-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e5e8ef]">
@@ -53,18 +58,30 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading }) => {
                     <td className="p-4">
                       <div className="h-4 bg-zinc-200 rounded-md w-20"></div>
                     </td>
+                    <td className="p-4">
+                      <div className="h-6 bg-zinc-100 rounded-md w-8 ml-auto"></div>
+                    </td>
                   </tr>
                 ))
               ) : tasks.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-[#6b7890] font-mono">
+                  <td colSpan={6} className="p-8 text-center text-[#6b7890] font-mono">
                     No tasks found.
                   </td>
                 </tr>
               ) : (
                 tasks.map((task) => (
-                  <tr key={task.id} className="hover:bg-[#fafbfd]/50 transition-colors">
-                    <td className="p-4 font-semibold text-[#0f172a]">{task.title}</td>
+                  <tr key={task.id} onClick={() => onTaskClick?.(task)} className="hover:bg-[#fafbfd]/50 transition-colors cursor-pointer">
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[#0f172a]">{task.title}</span>
+                        {currentUser?.role === "admin" && (
+                          <Badge variant={task.user_id === currentUser.id ? "brand" : "neutral"} className="text-[9px] px-1.5 py-0 shrink-0">
+                            {task.user_id === currentUser.id ? "By You" : "By Other"}
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
                     <td className="p-4 text-[#6b7890] max-w-xs truncate">{task.description || "—"}</td>
                     <td className="p-4">
                       <Badge variant={getStatusVariant(task.status)}>
@@ -76,6 +93,38 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading }) => {
                     </td>
                     <td className="p-4 text-[#6b7890] font-mono text-xs">
                       {task.due_date ? new Date(task.due_date).toLocaleDateString() : "—"}
+                    </td>
+                    <td className="p-4 text-right">
+                      {task.user_id === currentUser?.id ? (
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditClick?.(task);
+                            }}
+                            className="p-1.5 hover:bg-zinc-100 rounded-lg text-[#3d4a66] hover:text-[#2957ff] transition-all cursor-pointer inline-flex items-center justify-center border border-transparent hover:border-[#e5e8ef]"
+                            title="Edit Task"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteClick?.(task);
+                            }}
+                            className="p-1.5 hover:bg-red-50 rounded-lg text-[#3d4a66] hover:text-red-600 transition-all cursor-pointer inline-flex items-center justify-center border border-transparent hover:border-red-100"
+                            title="Delete Task"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-zinc-400 font-semibold select-none">—</span>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -118,11 +167,12 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading }) => {
             {tasks.map((task) => (
               <div
                 key={task.id}
-                className="bg-white border border-[#e5e8ef] hover:border-zinc-300 transition-all p-5 rounded-2xl shadow-[0_1px_2px_rgba(10,21,48,0.02)] flex flex-col justify-between min-h-[160px]"
+                onClick={() => onTaskClick?.(task)}
+                className="bg-white border border-[#e5e8ef] hover:border-zinc-300 hover:shadow-md transition-all p-5 rounded-2xl shadow-[0_1px_2px_rgba(10,21,48,0.02)] flex flex-col justify-between min-h-[160px] cursor-pointer"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
                       <svg
                         className="w-4.5 h-4.5 text-[#2957ff] shrink-0"
                         fill="none"
@@ -136,11 +186,50 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading }) => {
                           d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                         />
                       </svg>
-                      <h4 className="font-bold text-[#0f172a] text-sm line-clamp-1">{task.title}</h4>
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <h4 className="font-bold text-[#0f172a] text-sm line-clamp-1">{task.title}</h4>
+                        {currentUser?.role === "admin" && (
+                          <div className="flex mt-1">
+                            <Badge variant={task.user_id === currentUser.id ? "brand" : "neutral"} className="text-[9px] px-1.5 py-0 shrink-0">
+                              {task.user_id === currentUser.id ? "By You" : "By Other"}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <Badge variant={getStatusVariant(task.status)} className="shrink-0 text-[10px] px-2 py-0.5">
-                      {task.status ? String(task.status).replace("_", " ") : "todo"}
-                    </Badge>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Badge variant={getStatusVariant(task.status)} className="text-[10px] px-2 py-0.5">
+                        {task.status ? String(task.status).replace("_", " ") : "todo"}
+                      </Badge>
+                      {task.user_id === currentUser?.id && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditClick?.(task);
+                            }}
+                            className="p-1.5 hover:bg-zinc-100 rounded-lg text-[#3d4a66] hover:text-[#2957ff] transition-all cursor-pointer inline-flex items-center justify-center border border-transparent hover:border-[#e5e8ef]"
+                            title="Edit Task"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteClick?.(task);
+                            }}
+                            className="p-1.5 hover:bg-red-50 rounded-lg text-[#3d4a66] hover:text-red-600 transition-all cursor-pointer inline-flex items-center justify-center border border-transparent hover:border-red-100"
+                            title="Delete Task"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   <p className="text-[#6b7890] text-xs mt-2.5 line-clamp-2 leading-relaxed">
