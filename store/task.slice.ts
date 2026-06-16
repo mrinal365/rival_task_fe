@@ -1,14 +1,14 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 export interface Task {
-  id: number;
+  id: string;
   title: string;
   description?: string;
   status: string;
   priority?: string;
   due_date?: string;
   created_at?: string;
-  user_id?: number;
+  user_id?: string;
 }
 
 interface TaskState {
@@ -32,7 +32,11 @@ const taskSlice = createSlice({
       state.tasks = action.payload;
     },
     addTask: (state, action: PayloadAction<Task>) => {
-      state.tasks.push(action.payload);
+      state.tasks.unshift(action.payload);
+      // Keep only 10 items to match pagination page size
+      if (state.tasks.length > 10) {
+        state.tasks = state.tasks.slice(0, 10);
+      }
     },
     updateTask: (state, action: PayloadAction<Task>) => {
       const idx = state.tasks.findIndex((t) => t.id === action.payload.id);
@@ -40,7 +44,7 @@ const taskSlice = createSlice({
         state.tasks[idx] = action.payload;
       }
     },
-    deleteTask: (state, action: PayloadAction<number>) => {
+    deleteTask: (state, action: PayloadAction<string>) => {
       state.tasks = state.tasks.filter((t) => t.id !== action.payload);
     },
   },

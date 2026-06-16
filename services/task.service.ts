@@ -27,7 +27,7 @@ export const createTaskService = (payload: { title: string; description?: string
     });
 };
 
-export const getTaskByIdService = (id: number) => {
+export const getTaskByIdService = (id: string) => {
   return api
     .get(`/tasks/${id}`)
     .then((res) => {
@@ -41,7 +41,7 @@ export const getTaskByIdService = (id: number) => {
     });
 };
 
-export const updateTaskService = (id: number, payload: { title?: string; description?: string; due_date?: string; priority?: string; status?: string }) => {
+export const updateTaskService = (id: string, payload: { title?: string; description?: string; due_date?: string; priority?: string; status?: string }) => {
   return api
     .patch(`/tasks/${id}`, payload)
     .then((res) => {
@@ -55,7 +55,7 @@ export const updateTaskService = (id: number, payload: { title?: string; descrip
     });
 };
 
-export const deleteTaskService = (id: number) => {
+export const deleteTaskService = (id: string) => {
   return api
     .delete(`/tasks/${id}`)
     .then((res) => {
@@ -67,7 +67,7 @@ export const deleteTaskService = (id: number) => {
     });
 };
 
-export const getTaskHistoryService = (id: number) => {
+export const getTaskHistoryService = (id: string) => {
   return api
     .get(`/tasks/${id}/history`)
     .then((res) => {

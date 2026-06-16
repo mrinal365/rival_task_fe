@@ -42,3 +42,92 @@ body {
   animation: slow-up-down 1.6s ease-in-out infinite;
   animation-delay: -0.8s;
 }
+
+/* ─── Notification popup entrance ─── */
+@keyframes notification-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.notification-card-enter {
+  animation: notification-slide-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ─── Notification auto-dismiss progress bar ─── */
+@keyframes notification-progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.notification-progress {
+  animation: notification-progress linear forwards;
+}
+
+/* ─── Task row highlight (desktop table) ─── */
+@keyframes task-highlight-pulse {
+  0%, 100% {
+    background-color: rgba(41, 87, 255, 0.04);
+  }
+  50% {
+    background-color: rgba(41, 87, 255, 0.10);
+  }
+}
+
+.task-highlight-row {
+  animation: task-highlight-pulse 2s ease-in-out infinite;
+  border-left: 3px solid #2957ff;
+}
+
+/* ─── Task card highlight (mobile) ─── */
+@keyframes task-card-highlight {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(41, 87, 255, 0), 0 1px 2px rgba(10, 21, 48, 0.02);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(41, 87, 255, 0.12), 0 4px 12px rgba(41, 87, 255, 0.08);
+  }
+}
+
+.task-highlight-card {
+  animation: task-card-highlight 2s ease-in-out infinite;
+}
+
+/* ─── "Recently updated" badge glow ─── */
+@keyframes badge-glow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.task-highlight-badge {
+  animation: badge-glow 1.5s ease-in-out infinite;
+}
+
+/* ─── Fade in utility ─── */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
