@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { getAllTasksService, createTaskService, getTaskByIdService, updateTaskService, deleteTaskService, getTaskHistoryService } from "@/services/task.service";
+import { uploadToImageKit } from "@/services/imagekit.service";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
@@ -48,6 +49,10 @@ const Dashboard = () => {
   const [status, setStatus] = useState("todo");
   const [createError, setCreateError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attachments, setAttachments] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgressMsg, setUploadProgressMsg] = useState("");
+  const [uploadingFiles, setUploadingFiles] = useState<{ name: string; isPdf: boolean }[]>([]);
 
   // Task Detail Modal State
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -158,6 +163,7 @@ const Dashboard = () => {
     setDueDate(task.due_date ? new Date(task.due_date).toISOString().split("T")[0] : "");
     setPriority(task.priority || "medium");
     setStatus(task.status || "todo");
+    setAttachments(task.attachments || []);
     setShowCreateModal(true);
   };
 
@@ -194,6 +200,96 @@ const Dashboard = () => {
     setDueDate("");
     setPriority("medium");
     setStatus("todo");
+    setAttachments([]);
+    setUploadingFiles([]);
+  };
+
+  const handleOpenCreateModal = () => {
+    setEditingTask(null);
+    setCreateError(null);
+    setTitle("");
+    setDescription("");
+    setDueDate("");
+    setPriority("medium");
+    setStatus("todo");
+    setAttachments([]);
+    setUploadingFiles([]);
+    setShowCreateModal(true);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const fileList = Array.from(files);
+
+    if (attachments.length + fileList.length > 5) {
+      toast.warning("Maximum 5 attachments allowed per task.");
+      return;
+    }
+
+    const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
+    
+    const filesToUpload = fileList.filter(file => {
+      if (!validTypes.includes(file.type)) {
+        toast.error(`Invalid file type: ${file.name}. Only images and PDFs are allowed.`);
+        return false;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`File too large: ${file.name}. Max limit is 5MB.`);
+        return false;
+      }
+      return true;
+    });
+
+    if (filesToUpload.length === 0) return;
+
+    setIsUploading(true);
+    setUploadingFiles(filesToUpload.map(f => ({ name: f.name, isPdf: f.type === "application/pdf" })));
+
+    try {
+      const uploadedUrls: string[] = [];
+      for (const file of filesToUpload) {
+        setUploadProgressMsg(`Uploading ${file.name}...`);
+        const url = await uploadToImageKit(file);
+        uploadedUrls.push(url);
+        
+        setAttachments((prev) => [...prev, url]);
+        setUploadingFiles((prev) => prev.filter(item => item.name !== file.name));
+      }
+      toast.success("Files uploaded successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error("File upload failed. Verify your ImageKit credentials in .env");
+    } finally {
+      setIsUploading(false);
+      setUploadingFiles([]);
+      setUploadProgressMsg("");
+    }
+  };
+
+  const handleRemoveAttachment = (indexToRemove: number) => {
+    setAttachments((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const isFormChanged = () => {
+    if (!editingTask) return true;
+
+    const originalTitle = editingTask.title || "";
+    const originalDesc = editingTask.description || "";
+    const originalDueDate = editingTask.due_date ? new Date(editingTask.due_date).toISOString().split("T")[0] : "";
+    const originalPriority = editingTask.priority || "medium";
+    const originalStatus = editingTask.status || "todo";
+    const originalAttachments = editingTask.attachments || [];
+
+    const titleChanged = title.trim() !== originalTitle.trim();
+    const descChanged = description.trim() !== originalDesc.trim();
+    const dueDateChanged = dueDate !== originalDueDate;
+    const priorityChanged = priority !== originalPriority;
+    const statusChanged = status !== originalStatus;
+    const attachmentsChanged = JSON.stringify([...attachments].sort()) !== JSON.stringify([...originalAttachments].sort());
+
+    return titleChanged || descChanged || dueDateChanged || priorityChanged || statusChanged || attachmentsChanged;
   };
 
   const handleCreateTask = (e: React.FormEvent) => {
@@ -208,6 +304,7 @@ const Dashboard = () => {
       description,
       due_date: dueDate || undefined,
       priority,
+      attachments,
     })
       .then((newTask) => {
         toast.success("Task created successfully");
@@ -235,6 +332,7 @@ const Dashboard = () => {
       due_date: dueDate || undefined,
       priority,
       status,
+      attachments,
     })
       .then((updatedTask) => {
         toast.success("Task updated successfully");
@@ -353,8 +451,8 @@ const Dashboard = () => {
             />
           </div>
 
-          <button
-            onClick={() => setShowCreateModal(true)}
+           <button
+            onClick={handleOpenCreateModal}
             className="px-5 py-2.5 bg-[#2957ff] text-white font-semibold text-sm rounded-xl hover:bg-[#1b43d6] transition-all cursor-pointer shadow-[0_1px_2px_rgba(41,87,255,0.2)] flex items-center gap-2 self-start md:self-auto"
           >
             Create Task
@@ -443,6 +541,89 @@ const Dashboard = () => {
               ]}
             />
           )}
+
+          {/* Attachments Section */}
+          <div className="pt-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#3d4a66]">
+                Attachments ({attachments.length + uploadingFiles.length}/5)
+              </label>
+              <span className="text-[10px] text-[#6b7890] font-medium">
+                Max 5 total (images/PDFs)
+              </span>
+            </div>
+            
+            {/* Upload Area */}
+            {attachments.length + uploadingFiles.length < 5 && (
+              <div className="relative border-2 border-dashed border-[#e5e8ef] hover:border-[#2957ff] rounded-xl p-4 text-center transition-colors cursor-pointer bg-[#fafbfd]">
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleFileChange}
+                  disabled={isUploading || isSubmitting}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  accept="image/*,application/pdf"
+                />
+                <div className="flex flex-col items-center gap-1.5 text-xs text-[#6b7890]">
+                  <svg className="w-5 h-5 text-[#3d4a66]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  <span>
+                    {isUploading ? "Uploading files..." : "Upload images or PDFs (Max 5MB)"}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* List of uploaded attachments & uploading skeletons in a grid */}
+            {(attachments.length > 0 || uploadingFiles.length > 0) && (
+              <div className="flex flex-wrap gap-2.5 mt-3 max-h-[180px] overflow-y-auto pr-1">
+                {/* Uploaded attachments */}
+                {attachments.map((url, idx) => {
+                  const fileName = url.substring(url.lastIndexOf("/") + 1);
+                  const isPdf = url.toLowerCase().endsWith(".pdf");
+                  return (
+                    <div key={idx} className="relative w-16 h-16 border border-[#e5e8ef] rounded-xl overflow-hidden bg-[#fafbfd] group shrink-0">
+                      {isPdf ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-red-50/40 text-red-500 font-bold text-[10px]">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-[8px] mt-0.5">PDF</span>
+                        </div>
+                      ) : (
+                        <img src={url} alt={fileName} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      )}
+                      
+                      {/* Delete button overlay */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAttachment(idx)}
+                        className="absolute top-0.5 right-0.5 bg-black/60 hover:bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] cursor-pointer transition-colors border-none"
+                        title="Remove"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {/* Uploading skeletons */}
+                {uploadingFiles.map((file, idx) => (
+                  <div key={idx} className="w-16 h-16 border border-dashed border-[#2957ff]/30 rounded-xl bg-zinc-50 flex flex-col items-center justify-center relative overflow-hidden animate-pulse shrink-0">
+                    <svg className="animate-spin h-4 w-4 text-[#2957ff]" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span className="text-[7px] text-[#6b7890] mt-1 font-semibold truncate px-1 w-full text-center uppercase">
+                      {file.isPdf ? "PDF..." : "IMG..."}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-3 pt-2">
             <button
               type="button"
@@ -451,7 +632,7 @@ const Dashboard = () => {
             >
               Cancel
             </button>
-            <Button type="submit" isLoading={isSubmitting} className="flex-1">
+            <Button type="submit" isLoading={isSubmitting} disabled={editingTask ? !isFormChanged() : false} className="flex-1">
               {editingTask ? "Save Changes" : "Create"}
             </Button>
           </div>
@@ -517,6 +698,45 @@ const Dashboard = () => {
             {selectedTask.created_at && (
               <div className="border-t border-[#e5e8ef] pt-4 flex justify-between items-center text-[10px] text-[#6b7890] font-mono">
                 <span>Created: {new Date(selectedTask.created_at).toLocaleString()}</span>
+              </div>
+            )}
+
+            {/* Attachments Section (View Mode) */}
+            {selectedTask.attachments && selectedTask.attachments.length > 0 && (
+              <div className="border-t border-[#e5e8ef] pt-4">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#6b7890] block mb-2">
+                  Attachments ({selectedTask.attachments.length})
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  {selectedTask.attachments.map((url, idx) => {
+                    const fileName = url.substring(url.lastIndexOf("/") + 1);
+                    const isPdf = url.toLowerCase().endsWith(".pdf");
+                    
+                    return (
+                      <a
+                        key={idx}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex flex-col p-2.5 bg-[#fafbfd] border border-[#e5e8ef] hover:border-[#2957ff] hover:bg-blue-50/10 rounded-2xl transition-all cursor-pointer text-left group overflow-hidden"
+                      >
+                        {!isPdf ? (
+                          <div className="w-full h-24 rounded-lg bg-zinc-100 overflow-hidden mb-2 relative flex items-center justify-center shrink-0">
+                            <img src={url} alt={fileName} className="object-cover w-full h-full group-hover:scale-105 transition-transform" />
+                          </div>
+                        ) : (
+                          <div className="w-full h-24 rounded-lg bg-red-50/50 border border-red-100 flex flex-col items-center justify-center mb-2 shrink-0 text-red-500">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-[10px] font-bold uppercase mt-1">PDF File</span>
+                          </div>
+                        )}
+                        <span className="text-xs text-[#0f172a] font-medium truncate w-full block group-hover:text-[#2957ff] transition-colors">{fileName}</span>
+                      </a>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

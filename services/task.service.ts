@@ -13,7 +13,7 @@ export const getAllTasksService = (params?: { search?: string; sortBy?: string; 
     });
 };
 
-export const createTaskService = (payload: { title: string; description?: string; due_date?: string; priority?: string }) => {
+export const createTaskService = (payload: { title: string; description?: string; due_date?: string; priority?: string; attachments?: string[] }) => {
   return api
     .post("/tasks", payload)
     .then((res) => {
@@ -41,7 +41,7 @@ export const getTaskByIdService = (id: string) => {
     });
 };
 
-export const updateTaskService = (id: string, payload: { title?: string; description?: string; due_date?: string; priority?: string; status?: string }) => {
+export const updateTaskService = (id: string, payload: { title?: string; description?: string; due_date?: string; priority?: string; status?: string; attachments?: string[] }) => {
   return api
     .patch(`/tasks/${id}`, payload)
     .then((res) => {

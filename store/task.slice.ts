@@ -9,6 +9,7 @@ export interface Task {
   due_date?: string;
   created_at?: string;
   user_id?: string;
+  attachments?: string[];
 }
 
 interface TaskState {

@@ -27,7 +27,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
       <div className="absolute inset-0" onClick={onClose} />
 
       {/* Modal box */}
-      <div className="relative w-full sm:max-w-md bg-white border-t sm:border border-[#e5e8ef] rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl z-10 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto transition-transform duration-300 transform translate-y-0">
+      <div className="relative w-full sm:max-w-lg bg-white border-t sm:border border-[#e5e8ef] rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl z-10 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto transition-transform duration-300 transform translate-y-0">
         <div className="sm:hidden w-12 h-1 bg-zinc-200 rounded-full mx-auto mb-4 -mt-2" />
 
         <div className="flex items-center justify-between mb-4">

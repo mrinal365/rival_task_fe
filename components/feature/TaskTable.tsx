@@ -42,6 +42,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEd
                 <th className="p-4 font-semibold">Description</th>
                 <th className="p-4 font-semibold">Status</th>
                 <th className="p-4 font-semibold">Priority</th>
+                <th className="p-4 font-semibold">Attachments</th>
                 <th className="p-4 font-semibold">Created Date</th>
                 <th className="p-4 font-semibold">Due Date</th>
                 <th className="p-4 font-semibold text-right">Actions</th>
@@ -64,6 +65,9 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEd
                       <div className="h-4 bg-zinc-100 rounded-md w-12"></div>
                     </td>
                     <td className="p-4">
+                      <div className="h-4 bg-zinc-100 rounded-md w-10"></div>
+                    </td>
+                    <td className="p-4">
                       <div className="h-4 bg-zinc-200 rounded-md w-20"></div>
                     </td>
                     <td className="p-4">
@@ -76,7 +80,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEd
                 ))
               ) : tasks.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-[#6b7890] font-mono">
+                  <td colSpan={8} className="p-8 text-center text-[#6b7890] font-mono">
                     No tasks found.
                   </td>
                 </tr>
@@ -90,7 +94,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEd
                       className={`hover:bg-[#fafbfd]/50 transition-colors cursor-pointer ${highlighted ? "task-highlight-row" : ""}`}
                     >
                       <td className="p-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className={`font-semibold text-[#0f172a] ${task.status === "done" ? "line-through text-zinc-400" : ""}`}>{task.title}</span>
                           {highlighted && (
                             <Badge variant="warning" className="text-[9px] px-1.5 py-0 shrink-0 task-highlight-badge">
@@ -112,6 +116,30 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEd
                       </td>
                       <td className="p-4">
                         <span className="capitalize text-zinc-700 font-medium">{task.priority || "medium"}</span>
+                      </td>
+                      <td className="p-4">
+                        {task.attachments && task.attachments.length > 0 ? (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {task.attachments.map((url, index) => {
+                              const isPdf = url.toLowerCase().endsWith(".pdf");
+                              return (
+                                <span key={index} title={url.substring(url.lastIndexOf("/") + 1)} className="shrink-0">
+                                  {isPdf ? (
+                                    <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-4 h-4 text-[#2957ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                  )}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-zinc-400 font-medium select-none">—</span>
+                        )}
                       </td>
                       <td className="p-4 text-[#6b7890] font-mono text-xs">
                         {task.created_at ? new Date(task.created_at).toLocaleDateString() : "—"}
@@ -218,21 +246,42 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEd
                             d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                           />
                         </svg>
-                        <div className="flex flex-col flex-1 min-w-0">
-                          <h4 className={`font-bold text-[#0f172a] text-sm line-clamp-1 ${task.status === "done" ? "line-through text-zinc-400" : ""}`}>{task.title}</h4>
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            {highlighted && (
-                              <Badge variant="brand" className="text-[9px] px-1.5 py-0 shrink-0 task-highlight-badge">
-                                recently updated
-                              </Badge>
-                            )}
-                            {currentUser?.role === "admin" && (
-                              <Badge variant={task.user_id === currentUser.id ? "brand" : "neutral"} className="text-[9px] px-1.5 py-0 shrink-0">
-                                {task.user_id === currentUser.id ? "By You" : "By Other"}
-                              </Badge>
-                            )}
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <h4 className={`font-bold text-[#0f172a] text-sm line-clamp-1 ${task.status === "done" ? "line-through text-zinc-400" : ""}`}>{task.title}</h4>
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              {highlighted && (
+                                <Badge variant="warning" className="text-[9px] px-1.5 py-0 shrink-0 task-highlight-badge">
+                                  new
+                                </Badge>
+                              )}
+                              {currentUser?.role === "admin" && (
+                                <Badge variant={task.user_id === currentUser.id ? "brand" : "neutral"} className="text-[9px] px-1.5 py-0 shrink-0">
+                                  {task.user_id === currentUser.id ? "By You" : "By Other"}
+                                </Badge>
+                              )}
+                              {/* Attachment Icons */}
+                              {task.attachments && task.attachments.length > 0 && (
+                                <div className="flex items-center gap-1 shrink-0 ml-1">
+                                  {task.attachments.map((url, index) => {
+                                    const isPdf = url.toLowerCase().endsWith(".pdf");
+                                    return (
+                                      <span key={index} title={url.substring(url.lastIndexOf("/") + 1)} className="shrink-0">
+                                        {isPdf ? (
+                                          <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                          </svg>
+                                        ) : (
+                                          <svg className="w-3.5 h-3.5 text-[#2957ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                          </svg>
+                                        )}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <Badge variant={getStatusVariant(task.status)} className="text-[10px] px-2 py-0.5">
