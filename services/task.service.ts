@@ -66,3 +66,17 @@ export const deleteTaskService = (id: number) => {
       return Promise.reject(message);
     });
 };
+
+export const getTaskHistoryService = (id: number) => {
+  return api
+    .get(`/tasks/${id}/history`)
+    .then((res) => {
+      const data = res.data;
+      const history = data?.data || data;
+      return history;
+    })
+    .catch((err) => {
+      const message = err?.response?.data?.message || "Something went wrong";
+      return Promise.reject(message);
+    });
+};

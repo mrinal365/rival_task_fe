@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { getAllTasksService, createTaskService, getTaskByIdService, updateTaskService, deleteTaskService } from "@/services/task.service";
+import { getAllTasksService, createTaskService, getTaskByIdService, updateTaskService, deleteTaskService, getTaskHistoryService } from "@/services/task.service";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
@@ -55,6 +55,12 @@ const Dashboard = () => {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
 
+  // Task History Accordion State
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
   // Task Delete Modal State
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -67,6 +73,16 @@ const Dashboard = () => {
   useEffect(() => {
     setPage(1);
   }, [searchTerm, sortValue]);
+
+  // Reset accordion when detail modal closes
+  useEffect(() => {
+    if (!showDetailModal) {
+      setIsHistoryExpanded(false);
+      setHistory([]);
+      setLoadingHistory(false);
+      setHistoryError(null);
+    }
+  }, [showDetailModal]);
 
   useEffect(() => {
     setLoading(true);
@@ -112,6 +128,27 @@ const Dashboard = () => {
       .finally(() => {
         setLoadingDetail(false);
       });
+  };
+
+  const toggleHistoryAccordion = () => {
+    const nextState = !isHistoryExpanded;
+    setIsHistoryExpanded(nextState);
+
+    // If expanding and history is not loaded yet, fetch it!
+    if (nextState && selectedTask && history.length === 0) {
+      setLoadingHistory(true);
+      setHistoryError(null);
+      getTaskHistoryService(selectedTask.id)
+        .then((data) => {
+          setHistory(data || []);
+        })
+        .catch((err) => {
+          setHistoryError(err || "Failed to load activity log");
+        })
+        .finally(() => {
+          setLoadingHistory(false);
+        });
+    }
   };
 
   const handleEditClick = (task: Task) => {
@@ -482,6 +519,116 @@ const Dashboard = () => {
                 <span>Created: {new Date(selectedTask.created_at).toLocaleString()}</span>
               </div>
             )}
+
+            {/* History Accordion */}
+            <div className="border-t border-[#e5e8ef] pt-4">
+              <button
+                type="button"
+                onClick={toggleHistoryAccordion}
+                className="w-full flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#6b7890] hover:text-[#0f172a] transition-colors focus:outline-none cursor-pointer"
+              >
+                <span>Activity History</span>
+                <svg
+                  className={`w-4 h-4 transition-transform duration-200 ${isHistoryExpanded ? "rotate-180 text-[#0f172a]" : "text-[#6b7890]"}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isHistoryExpanded && (
+                <div className="mt-4 space-y-4 max-h-[300px] overflow-y-auto pr-1 animate-fade-in">
+                  {loadingHistory ? (
+                    // Beautiful loading skeletons
+                    <div className="space-y-4">
+                      {Array.from({ length: 3 }).map((_, idx) => (
+                        <div key={idx} className="flex gap-3 animate-pulse">
+                          <div className="flex flex-col items-center">
+                            <div className="w-2 h-2 bg-zinc-200 rounded-full shrink-0 mt-1.5"></div>
+                            {idx < 2 && <div className="w-0.5 h-12 bg-zinc-100 flex-1 my-1"></div>}
+                          </div>
+                          <div className="flex-1 space-y-2 pt-0.5">
+                            <div className="h-3.5 bg-zinc-200 rounded w-1/4"></div>
+                            <div className="h-3 bg-zinc-100 rounded w-3/4"></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : historyError ? (
+                    <div className="text-xs text-red-500 py-2">{historyError}</div>
+                  ) : history.length === 0 ? (
+                    <div className="text-xs text-[#6b7890] py-2 text-center font-mono">No history logs recorded.</div>
+                  ) : (
+                    // Vertical timeline
+                    <div className="relative pl-1 pb-2">
+                      <div className="absolute left-2.5 top-2 bottom-2 w-0.5 bg-[#e5e8ef]"></div>
+                      <div className="space-y-6">
+                        {history.map((log) => {
+                          const logDate = new Date(log.createdAt).toLocaleString();
+                          const isCreated = log.action === 'created';
+                          const isDeleted = log.action === 'deleted';
+
+                          return (
+                            <div key={log.id} className="relative flex gap-4 text-xs">
+                              {/* Timeline indicator node */}
+                              <div className="z-10 flex items-center justify-center w-5 h-5 rounded-full bg-white border-2 shrink-0 select-none mt-0.5 transition-all"
+                                   style={{
+                                     borderColor: isCreated ? "#10b981" : isDeleted ? "#ef4444" : "#2957ff"
+                                   }}
+                              >
+                                <div className="w-1.5 h-1.5 rounded-full"
+                                     style={{
+                                       backgroundColor: isCreated ? "#10b981" : isDeleted ? "#ef4444" : "#2957ff"
+                                     }}
+                                />
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-semibold text-[#0f172a] capitalize">
+                                    Task {log.action}
+                                  </span>
+                                  <span className="text-[10px] text-[#6b7890] font-mono shrink-0">
+                                    {logDate}
+                                  </span>
+                                </div>
+                                <p className="text-[#6b7890] mt-0.5 text-[11px]">
+                                  Performer: <span className="font-medium text-[#3d4a66]">{log.user?.name || log.user?.email || "Unknown"}</span>
+                                </p>
+
+                                {/* Changes detail view if updated */}
+                                {log.changes && Object.keys(log.changes).length > 0 && !isCreated && (
+                                  <div className="mt-2 bg-[#fafbfd] border border-[#e5e8ef] rounded-xl p-2.5 space-y-1.5 text-[11px] font-mono">
+                                    {Object.entries(log.changes).map(([field, delta]: [string, any]) => (
+                                      <div key={field} className="flex flex-col sm:flex-row sm:items-start gap-1 leading-relaxed">
+                                        <span className="font-semibold text-[#3d4a66] uppercase tracking-wider text-[9px] shrink-0 min-w-[70px] mt-0.5">
+                                          {field.replace('_', ' ')}:
+                                        </span>
+                                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                                          <span className="text-[#ef4444] bg-red-50 px-1 py-0.5 rounded border border-red-100 max-w-[120px] truncate" title={delta.old || "—"}>
+                                            {delta.old || "—"}
+                                          </span>
+                                          <span className="text-[#6b7890] select-none">→</span>
+                                          <span className="text-[#10b981] bg-emerald-50 px-1 py-0.5 rounded border border-emerald-100 max-w-[120px] truncate" title={delta.new || "—"}>
+                                            {delta.new || "—"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Actions/Close */}
             <div className="pt-2">

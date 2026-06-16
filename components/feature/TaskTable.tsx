@@ -35,6 +35,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEd
                 <th className="p-4 font-semibold">Description</th>
                 <th className="p-4 font-semibold">Status</th>
                 <th className="p-4 font-semibold">Priority</th>
+                <th className="p-4 font-semibold">Created Date</th>
                 <th className="p-4 font-semibold">Due Date</th>
                 <th className="p-4 font-semibold text-right">Actions</th>
               </tr>
@@ -59,13 +60,16 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEd
                       <div className="h-4 bg-zinc-200 rounded-md w-20"></div>
                     </td>
                     <td className="p-4">
+                      <div className="h-4 bg-zinc-200 rounded-md w-20"></div>
+                    </td>
+                    <td className="p-4">
                       <div className="h-6 bg-zinc-100 rounded-md w-8 ml-auto"></div>
                     </td>
                   </tr>
                 ))
               ) : tasks.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-[#6b7890] font-mono">
+                  <td colSpan={7} className="p-8 text-center text-[#6b7890] font-mono">
                     No tasks found.
                   </td>
                 </tr>
@@ -74,7 +78,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEd
                   <tr key={task.id} onClick={() => onTaskClick?.(task)} className="hover:bg-[#fafbfd]/50 transition-colors cursor-pointer">
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[#0f172a]">{task.title}</span>
+                        <span className={`font-semibold text-[#0f172a] ${task.status === "done" ? "line-through text-zinc-400" : ""}`}>{task.title}</span>
                         {currentUser?.role === "admin" && (
                           <Badge variant={task.user_id === currentUser.id ? "brand" : "neutral"} className="text-[9px] px-1.5 py-0 shrink-0">
                             {task.user_id === currentUser.id ? "By You" : "By Other"}
@@ -82,7 +86,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEd
                         )}
                       </div>
                     </td>
-                    <td className="p-4 text-[#6b7890] max-w-xs truncate">{task.description || "—"}</td>
+                    <td className={`p-4 text-[#6b7890] max-w-xs truncate ${task.status === "done" ? "line-through text-zinc-300" : ""}`}>{task.description || "—"}</td>
                     <td className="p-4">
                       <Badge variant={getStatusVariant(task.status)}>
                         {task.status ? String(task.status).replace("_", " ") : "todo"}
@@ -90,6 +94,9 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEd
                     </td>
                     <td className="p-4">
                       <span className="capitalize text-zinc-700 font-medium">{task.priority || "medium"}</span>
+                    </td>
+                    <td className="p-4 text-[#6b7890] font-mono text-xs">
+                      {task.created_at ? new Date(task.created_at).toLocaleDateString() : "—"}
                     </td>
                     <td className="p-4 text-[#6b7890] font-mono text-xs">
                       {task.due_date ? new Date(task.due_date).toLocaleDateString() : "—"}
@@ -187,7 +194,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEd
                         />
                       </svg>
                       <div className="flex flex-col flex-1 min-w-0">
-                        <h4 className="font-bold text-[#0f172a] text-sm line-clamp-1">{task.title}</h4>
+                        <h4 className={`font-bold text-[#0f172a] text-sm line-clamp-1 ${task.status === "done" ? "line-through text-zinc-400" : ""}`}>{task.title}</h4>
                         {currentUser?.role === "admin" && (
                           <div className="flex mt-1">
                             <Badge variant={task.user_id === currentUser.id ? "brand" : "neutral"} className="text-[9px] px-1.5 py-0 shrink-0">
@@ -232,12 +239,12 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEd
                     </div>
                   </div>
 
-                  <p className="text-[#6b7890] text-xs mt-2.5 line-clamp-2 leading-relaxed">
+                  <p className={`text-[#6b7890] text-xs mt-2.5 line-clamp-2 leading-relaxed ${task.status === "done" ? "line-through text-zinc-300" : ""}`}>
                     {task.description || "No description provided."}
                   </p>
                 </div>
 
-                <div className="mt-4 pt-3 flex items-center justify-between border-t border-[#e5e8ef]/50 text-xs">
+                <div className="mt-4 pt-3 flex items-center justify-between flex-wrap gap-2 border-t border-[#e5e8ef]/50 text-xs">
                   {/* Priority */}
                   <div className="flex items-center gap-1.5 text-zinc-700 font-medium">
                     <svg
@@ -254,6 +261,12 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading, onTaskClick, onEd
                       />
                     </svg>
                     <span className="capitalize">{task.priority || "medium"}</span>
+                  </div>
+
+                  {/* Created Date */}
+                  <div className="flex items-center gap-1 text-[#6b7890] font-mono text-[11px]">
+                    <span className="text-[9px] uppercase tracking-wider text-[#6b7890] font-bold">Created:</span>
+                    <span>{task.created_at ? new Date(task.created_at).toLocaleDateString() : "—"}</span>
                   </div>
 
                   {/* Due Date */}
