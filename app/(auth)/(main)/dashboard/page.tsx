@@ -294,7 +294,7 @@ const Dashboard = () => {
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || isUploading) return;
 
     setIsSubmitting(true);
     setCreateError(null);
@@ -321,7 +321,7 @@ const Dashboard = () => {
 
   const handleUpdateTask = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingTask || !title.trim()) return;
+    if (!editingTask || !title.trim() || isUploading) return;
 
     setIsSubmitting(true);
     setCreateError(null);
@@ -632,7 +632,7 @@ const Dashboard = () => {
             >
               Cancel
             </button>
-            <Button type="submit" isLoading={isSubmitting} disabled={editingTask ? !isFormChanged() : false} className="flex-1">
+            <Button type="submit" isLoading={isSubmitting} disabled={isUploading || (editingTask ? !isFormChanged() : false)} className="flex-1">
               {editingTask ? "Save Changes" : "Create"}
             </Button>
           </div>
