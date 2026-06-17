@@ -6,14 +6,45 @@ Rival.io is a modern, real-time, responsive task management application. This re
 
 ## Technical Overview & Architecture
 
-The application is structured as a single-page application (SPA) with server-side page routing configurations provided by **Next.js 16 (App Router)**. Here is an overview of the core architectural patterns:
+The application is structured as a client-side SPA with routing and layout configurations powered by **Next.js 16 (App Router)**. Here is an overview of how the frontend satisfies the core requirements of the developer assessment:
 
-- **State Management (Redux Toolkit)**: A centralized Redux store manages authenticated user profiles, task list entities, and the real-time notification queue.
-- **Optimistic Updates**: Task creation is instantly prepended to the task list view with a size cap of `10` tasks per page to guarantee seamless performance prior to backend API response confirmation.
-- **WebSocket Synchronization (Socket.io-client)**: Connected Admin sockets receive background push events when tasks are created, updated, or deleted.
-- **State Highlighting System**: Real-time Socket events trigger a 20-second row-highlight pulse and show a yellow `"new"` tag adjacent to the modified task title across all boards.
-- **Minimalist Toastless Overlay**: Custom overlay UI component handles event notification queues in place of standard blocking alerts.
-- **Direct Cloud Uploads (ImageKit SDK)**: Implements direct signature-authenticated ImageKit file uploads with loading skeletons (supports mixed Image/PDF attachments up to 5 total, 5MB each).
+### Core Tasks Implementation
+
+- **Task Management & API Interactivity**
+  - Consumes REST API endpoints using modular Axios services ([task.service.ts](file:///c:/Users/IVKU/Desktop/Job%20Tasks/rival_task_fe/services/task.service.ts)).
+  - Renders tabular list structures on desktop and responsive grid cards on mobile ([TaskTable.tsx](file:///c:/Users/IVKU/Desktop/Job%20Tasks/rival_task_fe/components/feature/TaskTable.tsx)).
+  - Supports clean page navigation mapped to database pagination sizes of `10` tasks.
+
+- **Authentication, Authorization & State Persistence**
+  - Implements state persistence via `localStorage` ([auth.provider.tsx](file:///c:/Users/IVKU/Desktop/Job%20Tasks/rival_task_fe/providers/auth.provider.tsx)). A gateway layout validates the active JSON Web Token (JWT) on load or reload, ensuring users remain logged in across page refreshes.
+  - Enforces frontend security logic by checking task ownership to conditionally show edit/delete triggers, aligning with backend scoped security rules.
+
+- **Client-Side Validation & Responsive UI**
+  - Input forms perform validation before request dispatch. The update form submit button is dynamically disabled if no changes are detected (`!isFormChanged()`).
+  - Gracefully displays loading, empty, and error states using animated skeleton loaders, placeholder text blocks, and descriptive error banners.
+  - Fully responsive layouts tailored to mobile, tablet, and desktop viewports using mobile-first Tailwind utility classes.
+
+- **Consolidated Filtering, Search & Sorting**
+  - Features consolidated state controls where text search, sorting fields, status filters, and active pagination values are combined into a single API request flow, utilizing debounced user input triggers.
+
+
+- **Role-Based Access Control (RBAC)**:
+  - Dynamically renders administrative badges (`By You` vs `By Other`) on the task grids for users with the `admin` role, letting them inspect tasks created by any user while restricting standard users to their own dashboard.
+
+- **Real-Time WebSockets Sync**:
+  - A singleton Socket manager ([socket.ts](file:///c:/Users/IVKU/Desktop/Job%20Tasks/rival_task_fe/lib/socket.ts)) connects to the server and listens for task mutations (`task:created`, `task:updated`, `task:deleted`). Redux slices are updated in real-time.
+- Modified tasks receive a pulsing background highlight animation and a yellow `"new"` badge for exactly 20 seconds.
+
+
+- **State Highlighting & Optimistic UI**:
+  - Optimistically prepends new or updated tasks to the top of the Redux state list.
+
+- **Task Attachments**:
+  - Integrates file upload mechanics allowing up to 5 attachments (images and PDFs up to 5MB each) utilizing ImageKit.
+  - Renders inline loading skeletons with live spinners inside the attachment grid while files are uploading.
+
+- **Activity Log History**:
+  - Queries task history logs and presents user actions in a vertical timeline, showing specific field updates (e.g. `Status: todo → in progress`) inside an accordion component.
 
 ---
 
@@ -77,7 +108,7 @@ Create a `.env` file in the root of the project to match the API and ImageKit co
 # URL where backend REST endpoints are hosted
 NEXT_PUBLIC_API_URL=http://localhost:5001/api
 
-# URL of Socket.io Server (usually the backend base url)
+# URL of Socket.io Server ( the backend base url)
 NEXT_PUBLIC_SOCKET_URL=http://localhost:5001
 
 # Public credentials for ImageKit uploads
