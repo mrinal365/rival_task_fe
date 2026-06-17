@@ -66,7 +66,7 @@ export default function Login() {
         const token = res?.data?.token || res?.token;
         if (token) {
           setToken(token);
-          toast.success("Logged in successfully! Token stored.");
+          toast.success("Logged in successfully!");
           router.push('/dashboard')
         } else {
           toast.warning("Something went wrong please ty again!");

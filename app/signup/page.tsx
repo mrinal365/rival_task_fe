@@ -70,7 +70,10 @@ export default function Signup() {
         const token = res?.data?.token || res?.token;
         if (token) {
           setToken(token);
-          toast.success("Signed up successfully! please login now");
+          toast.success("Signed up successfully!");
+          router.push('/dashboard');
+        } else {
+          toast.warning("Something went wrong, please try again!");
         }
       })
       .catch((err) => {
